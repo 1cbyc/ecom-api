@@ -200,3 +200,7 @@ temp/
 
 # FastAPI specific
 .pytest_cache/
+
+# personal
+rough-notes.txt
+instruction.md
