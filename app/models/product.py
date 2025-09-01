@@ -74,4 +74,4 @@ class Product(Base):
     
     @property
     def is_on_sale(self):
-        return self.compare_at_price and self.compare_at_price > self.price
+        return bool(self.compare_at_price and self.compare_at_price > self.price)
