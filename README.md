@@ -9,7 +9,10 @@ i want this to be my go to ecomerce api for python, so i will be using fast api 
 db design:
 ![db design](db-design-summary.png)
 
-🌐 Final URLs:
-API: https://ecomapi.nsisong.com/
-Docs: https://ecomapi.nsisong.com/docs
-Products: https://ecomapi.nsisong.com/api/v1/products/
+🌐 URLs:
+- API: https://ecomapi.nsisong.com/
+- Docs: https://ecomapi.nsisong.com/docs
+- Products: https://ecomapi.nsisong.com/api/v1/products/
+
+I got the Project idea from:
+https://roadmap.sh/projects/ecommerce-api
