@@ -13,3 +13,6 @@ db design:
 - API: https://ecomapi.nsisong.com/
 - Docs: https://ecomapi.nsisong.com/docs
 - Products: https://ecomapi.nsisong.com/api/v1/products/
+
+I got the Project idea from:
+https://roadmap.sh/projects/ecommerce-api
