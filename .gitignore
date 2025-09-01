@@ -190,3 +190,11 @@ build.sh
 # Deployment files
 .htaccess*
 passenger_wsgi.py
+
+# CI/CD Workflow backups (prevent multiple conflicting workflows)
+.github/workflows/*-old.yml
+.github/workflows/*-backup.yml
+.github/workflows/*-complex.yml
+.github/workflows/*-simple.yml
+.github/workflows/ci-cd*.yml
+!.github/workflows/production.yml
