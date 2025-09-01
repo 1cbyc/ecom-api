@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Production CI/CD
 
 on:
   push:
@@ -7,7 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  validate:
+  code-quality:
+    name: Code Quality Check
     runs-on: ubuntu-latest
     
     steps:
@@ -38,7 +39,7 @@ jobs:
         
         echo "✅ Project structure validation complete"
         
-    - name: Test basic Python syntax
+    - name: Test Python syntax
       run: |
         echo "🐍 Testing Python syntax..."
         
@@ -57,7 +58,7 @@ jobs:
         
         echo "✅ Basic imports successful"
 
-    - name: Validate requirements format
+    - name: Validate requirements
       run: |
         echo "📋 Validating requirements.txt format..."
         
@@ -69,7 +70,8 @@ jobs:
         
         echo "✅ Requirements validation complete"
 
-  security-check:
+  security:
+    name: Security Scan
     runs-on: ubuntu-latest
     continue-on-error: true  # Don't fail the pipeline if security check has warnings
     
@@ -94,8 +96,9 @@ jobs:
         
         echo "✅ Security check completed"
 
-  deploy-notification:
-    needs: [validate]  # Only needs validate to pass
+  deploy:
+    name: Deploy Notification
+    needs: [code-quality]  # Only needs code-quality to pass
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/deploy-to-render' && github.event_name == 'push'
     
