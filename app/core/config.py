@@ -1,58 +1,44 @@
-"""
-Core configuration settings for the e-commerce API.
-
-This module handles all environment variables and application settings.
-Using Pydantic for settings provides automatic validation and type checking.
-"""
-
 from pydantic_settings import BaseSettings
 from typing import Optional
 
 
 class Settings(BaseSettings):
-    """
-    Application settings loaded from environment variables.
     
-    Pydantic automatically validates types and can load from:
-    - Environment variables
-    - .env files
-    - Default values defined here
-    """
-    
-    # Project Information
     PROJECT_NAME: str = "E-commerce API"
     VERSION: str = "1.0.0"
-    DESCRIPTION: str = "A comprehensive e-commerce API with authentication, payments, and admin features"
+    DESCRIPTION: str = "Production E-commerce API with auth, payments, and admin"
     
-    # API Configuration
     API_V1_STR: str = "/api/v1"
-    DEBUG: bool = True
+    DEBUG: bool = False
     
-    # Database
-    DATABASE_URL: str = "postgresql://username:password@localhost:5432/ecom_db"
+    # CRITICAL: All sensitive data MUST come from environment variables
+    DATABASE_URL: str
     
-    # Security
-    SECRET_KEY: str = "change-this-super-secret-key-in-production"
+    # JWT Configuration - NEVER hardcode these
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
-    # Stripe Payment Gateway
-    STRIPE_PUBLISHABLE_KEY: Optional[str] = None
-    STRIPE_SECRET_KEY: Optional[str] = None
-    STRIPE_WEBHOOK_SECRET: Optional[str] = None
+    # Stripe Configuration - Production keys
+    STRIPE_PUBLISHABLE_KEY: str
+    STRIPE_SECRET_KEY: str
+    STRIPE_WEBHOOK_SECRET: str
     
-    # CORS (Cross-Origin Resource Sharing) - for frontend integration
-    BACKEND_CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:8080", "http://localhost:5500"]
+    # CORS origins - restrict in production
+    BACKEND_CORS_ORIGINS: list = []
+    
+    # Admin credentials - CRITICAL for initial setup
+    ADMIN_EMAIL: str = "admin@example.com"
+    ADMIN_PASSWORD: str
+    
+    # Environment
+    ENVIRONMENT: str = "production"
     
     class Config:
-        """
-        Pydantic configuration.
-        env_file tells Pydantic to look for a .env file to load settings.
-        """
         env_file = ".env"
         case_sensitive = True
 
 
-# Create a global settings instance
-# This will be imported throughout the application
+# to create a global settings instance
+# will be imported throughout the app
 settings = Settings()
