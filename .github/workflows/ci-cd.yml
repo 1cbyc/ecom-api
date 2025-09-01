@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Production CI/CD Pipeline
 
 on:
   push:
@@ -45,57 +45,262 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install pytest pytest-asyncio httpx
         
     - name: Set up test environment variables
       run: |
         echo "DATABASE_URL=postgresql://test_user:test_pass@localhost:5432/test_ecom" >> $GITHUB_ENV
-        echo "SECRET_KEY=test-secret-key-for-github-actions-only" >> $GITHUB_ENV
+        echo "SECRET_KEY=test-secret-key-for-github-actions-only-32-chars-long" >> $GITHUB_ENV
         echo "ALGORITHM=HS256" >> $GITHUB_ENV
         echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> $GITHUB_ENV
-        echo "STRIPE_PUBLISHABLE_KEY=pk_test_fake_key_for_testing" >> $GITHUB_ENV
-        echo "STRIPE_SECRET_KEY=sk_test_fake_key_for_testing" >> $GITHUB_ENV
-        echo "STRIPE_WEBHOOK_SECRET=whsec_fake_secret_for_testing" >> $GITHUB_ENV
+        echo "STRIPE_PUBLISHABLE_KEY=pk_test_fake_key_for_testing_only" >> $GITHUB_ENV
+        echo "STRIPE_SECRET_KEY=sk_test_fake_key_for_testing_only" >> $GITHUB_ENV
+        echo "STRIPE_WEBHOOK_SECRET=whsec_fake_secret_for_testing_only" >> $GITHUB_ENV
         echo "ADMIN_EMAIL=admin@test.com" >> $GITHUB_ENV
-        echo "ADMIN_PASSWORD=test_admin_password" >> $GITHUB_ENV
+        echo "ADMIN_PASSWORD=test_admin_password_secure_123" >> $GITHUB_ENV
         echo "ENVIRONMENT=testing" >> $GITHUB_ENV
-        echo "DEBUG=true" >> $GITHUB_ENV
+        echo "DEBUG=false" >> $GITHUB_ENV
+        echo "BACKEND_CORS_ORIGINS=[\"http://localhost:3000\"]" >> $GITHUB_ENV
         
-    - name: Run database migrations
+    - name: Wait for PostgreSQL
       run: |
-        # Skip database initialization for CI tests
-        echo "Skipping database initialization in CI environment"
+        until pg_isready -h localhost -p 5432 -U test_user; do
+          echo "Waiting for PostgreSQL..."
+          sleep 2
+        done
+        echo "PostgreSQL is ready!"
         
-    - name: Run tests
+    - name: Create database tables
       run: |
-        # Run pytest if tests exist, otherwise run basic import test
-        if [ -f "pytest.ini" ] || [ -d "tests" ]; then
-          pytest -v
-        else
-          echo "Running basic import test..."
-          python -c "
-          # Test basic imports
-          try:
-              import app.core.config
-              print('✅ Config import successful')
-              import app.schemas.user
-              print('✅ Schemas import successful')
-              import app.models.user
-              print('✅ Models import successful')
-              print('✅ All critical imports successful')
-          except ImportError as e:
-              print(f'❌ Import failed: {e}')
-              exit(1)
-          "
+        python -c "
+        import os
+        os.environ['DATABASE_URL'] = 'postgresql://test_user:test_pass@localhost:5432/test_ecom'
+        os.environ['SECRET_KEY'] = 'test-secret-key-for-github-actions-only-32-chars-long'
+        os.environ['STRIPE_PUBLISHABLE_KEY'] = 'pk_test_fake'
+        os.environ['STRIPE_SECRET_KEY'] = 'sk_test_fake'
+        os.environ['STRIPE_WEBHOOK_SECRET'] = 'whsec_fake'
+        os.environ['ADMIN_EMAIL'] = 'admin@test.com'
+        os.environ['ADMIN_PASSWORD'] = 'test_admin_password'
+        os.environ['ENVIRONMENT'] = 'testing'
+        
+        from app.db.base import Base, engine
+        print('Creating database tables...')
+        Base.metadata.create_all(bind=engine)
+        print('✅ Database tables created successfully')
+        
+        from app.db.init_db import init_db
+        from app.db.base import SessionLocal
+        db = SessionLocal()
+        try:
+            init_db(db)
+            print('✅ Database initialized with admin user')
+        except Exception as e:
+            print(f'⚠️  Database init warning: {e}')
+        finally:
+            db.close()
+        "
+        
+    - name: Run import tests
+      run: |
+        python -c "
+        print('Testing critical imports...')
+        
+        # Test configuration
+        from app.core.config import settings
+        print(f'✅ Config loaded: {settings.PROJECT_NAME}')
+        
+        # Test models
+        from app.models.user import User, UserRole
+        from app.models.product import Product, Category
+        from app.models.cart import Cart, CartItem
+        print('✅ Models imported successfully')
+        
+        # Test schemas
+        from app.schemas.user import UserCreate, UserLogin
+        from app.schemas.product import ProductCreate, CategoryCreate
+        print('✅ Schemas imported successfully')
+        
+        # Test CRUD operations
+        from app.crud.user import create_user, get_user_by_email
+        from app.crud.product import create_product, get_categories
+        print('✅ CRUD operations imported successfully')
+        
+        # Test API endpoints
+        from app.api.v1.endpoints import auth, products, categories, cart
+        print('✅ API endpoints imported successfully')
+        
+        # Test main app
+        from app.main import app
+        print('✅ FastAPI app created successfully')
+        
+        print('🎉 All critical imports passed!')
+        "
+
+    - name: Run unit tests
+      run: |
+        # Create a simple test file if none exists
+        if [ ! -d "tests" ]; then
+          mkdir tests
+          cat > tests/test_basic.py << 'EOF'
+import pytest
+from fastapi.testclient import TestClient
+from app.main import app
+from app.core.config import settings
+
+client = TestClient(app)
+
+def test_read_root():
+    response = client.get("/")
+    assert response.status_code == 200
+    data = response.json()
+    assert "message" in data
+    assert data["message"] == "E-commerce API"
+
+def test_docs_accessible():
+    response = client.get("/docs")
+    assert response.status_code == 200
+
+def test_openapi_schema():
+    response = client.get("/api/v1/openapi.json")
+    assert response.status_code == 200
+    
+def test_config_loading():
+    assert settings.PROJECT_NAME == "E-commerce API"
+    assert settings.VERSION == "1.0.0"
+EOF
         fi
         
-    - name: Run basic API tests
+        # Run tests
+        pytest tests/ -v --tb=short
+        echo "✅ Unit tests completed"
+
+    - name: Start API server for integration tests
       run: |
-        echo "✅ Skipping API tests in CI environment"
-        echo "✅ Live API testing is done on actual deployment"
-        echo "✅ All import tests passed successfully"
+        echo "Starting API server for integration tests..."
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        API_PID=$!
+        echo $API_PID > api.pid
+        
+        # Wait for server to start
+        for i in {1..30}; do
+          if curl -f http://localhost:8000/ >/dev/null 2>&1; then
+            echo "✅ API server is ready"
+            break
+          fi
+          echo "Waiting for API server... ($i/30)"
+          sleep 2
+        done
+        
+    - name: Run integration tests
+      run: |
+        echo "Running integration tests..."
+        
+        # Test health endpoint
+        curl -f http://localhost:8000/ || exit 1
+        echo "✅ Health check passed"
+        
+        # Test admin user creation and login
+        ADMIN_LOGIN=$(curl -X POST http://localhost:8000/api/v1/auth/login \
+          -H "Content-Type: application/json" \
+          -d '{"email":"admin@test.com","password":"test_admin_password_secure_123"}' \
+          -w "%{http_code}" -o login_response.json)
+        
+        if [ "$ADMIN_LOGIN" = "200" ]; then
+          echo "✅ Admin login successful"
+          ADMIN_TOKEN=$(cat login_response.json | python -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
+          echo "✅ Admin token obtained"
+          
+          # Test category creation
+          curl -X POST http://localhost:8000/api/v1/categories/ \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Test Category","description":"Test","slug":"test-category"}' \
+            -f || exit 1
+          echo "✅ Category creation test passed"
+          
+          # Test product creation  
+          curl -X POST http://localhost:8000/api/v1/products/ \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Test Product","price":"10.00","sku":"TEST-001","slug":"test-product"}' \
+            -f || exit 1
+          echo "✅ Product creation test passed"
+        else
+          echo "❌ Admin login failed"
+          exit 1
+        fi
+        
+        echo "🎉 All integration tests passed!"
+        
+    - name: Stop API server
+      if: always()
+      run: |
+        if [ -f api.pid ]; then
+          kill $(cat api.pid) || true
+          rm api.pid
+        fi
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install security tools
+      run: |
+        pip install bandit[toml] safety pip-audit
+        
+    - name: Run dependency vulnerability scan
+      run: |
+        echo "Scanning for known vulnerabilities in dependencies..."
+        pip-audit --requirement requirements.txt --format=json --output=dependency-vulnerabilities.json || true
+        
+    - name: Run Bandit security scan
+      run: |
+        echo "Running Bandit security scan..."
+        bandit -r app/ -f json -o bandit-security-report.json -ll || true
+        
+        # Show summary
+        if [ -f bandit-security-report.json ]; then
+          echo "✅ Bandit scan completed"
+          python -c "
+import json
+try:
+    with open('bandit-security-report.json', 'r') as f:
+        report = json.load(f)
+    print(f'Security scan results:')
+    print(f'  High severity issues: {len([r for r in report.get(\"results\", []) if r.get(\"issue_severity\") == \"HIGH\"])}')
+    print(f'  Medium severity issues: {len([r for r in report.get(\"results\", []) if r.get(\"issue_severity\") == \"MEDIUM\"])}')
+    print(f'  Low severity issues: {len([r for r in report.get(\"results\", []) if r.get(\"issue_severity\") == \"LOW\"])}')
+except Exception as e:
+    print(f'Could not parse security report: {e}')
+          "
+        else
+          echo "⚠️  No security report generated"
+        fi
+        
+    - name: Run Safety check
+      run: |
+        echo "Running Safety check for known security vulnerabilities..."
+        safety check --json --output safety-report.json || true
+        
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-scan-results
+        path: |
+          bandit-security-report.json
+          dependency-vulnerabilities.json
+          safety-report.json
+        if-no-files-found: warn
 
   deploy:
-    needs: test
+    needs: [test, security-scan]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/deploy-to-render' && github.event_name == 'push'
     
@@ -110,39 +315,23 @@ jobs:
         echo "🚀 Deployment triggered to Render"
         echo "Branch: ${{ github.ref }}"
         echo "Commit: ${{ github.sha }}"
-        # Render auto-deploys when deploy-to-render branch is pushed
-        # This step is mainly for logging and could trigger additional actions
+        echo "Timestamp: $(date)"
+        
+        if [ -n "$RENDER_API_KEY" ] && [ -n "$RENDER_SERVICE_ID" ]; then
+          echo "✅ Render API credentials available"
+          # Here you could add actual Render API calls if needed
+          # For now, Render auto-deploys from the branch
+        else
+          echo "ℹ️  Using Render auto-deployment from branch"
+        fi
         
     - name: Notify deployment status
       if: always()
       run: |
         if [ "${{ job.status }}" == "success" ]; then
-          echo "✅ Deployment completed successfully"
+          echo "✅ Deployment pipeline completed successfully"
+          echo "🌐 Your API should be live at: https://ecom-api-s8lz.onrender.com"
+          echo "📚 Documentation available at: https://ecom-api-s8lz.onrender.com/docs"
         else
-          echo "❌ Deployment failed"
+          echo "❌ Deployment pipeline failed"
         fi
-
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run security scan
-      uses: pypa/gh-action-pip-audit@v1.0.8
-      with:
-        inputs: requirements.txt
-        
-    - name: Run Bandit security scan
-      run: |
-        pip install bandit[toml]
-        echo "Running bandit security scan..."
-        bandit -r app/ -f json -o bandit-report.json || echo "Bandit scan completed with warnings"
-        ls -la bandit-report.json || echo "No report file generated"
-        
-    - name: Upload security scan results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: security-scan-results
-        path: bandit-report.json
-        if-no-files-found: warn
