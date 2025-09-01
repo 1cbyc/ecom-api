@@ -1,0 +1,28 @@
+# Core Framework
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy
+alembic
+
+# Authentication & Security
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+
+# Payment Integration
+stripe
+
+# Environment & Configuration
+python-dotenv
+pydantic
+pydantic-settings
+
+# Development & Testing
+pytest
+pytest-asyncio
+httpx
+
+# Data Validation & Serialization
+email-validator
