@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ecom-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -c "from app.db.init_db import create_tables, init_db; from app.db.base import SessionLocal; create_tables(); db = SessionLocal(); init_db(db); db.close()" && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:///./ecom.db
+      - key: DEBUG
+        value: "False"
+      - key: ENVIRONMENT
+        value: "production"
+      - key: ALGORITHM
+        value: "HS256"
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
