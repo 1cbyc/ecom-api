@@ -172,3 +172,21 @@ PRODUCTION_AUDIT_REPORT.md
 KEEP_RECORDS_APP_SECURITY_AUDIT.md
 AUDIT_COMMANDS_LOG.md
 Archive.zip
+.htaccess.proxy
+ecom-api-deploy.zip
+pr.md
+PERSONAL_README.md
+
+# Test files (may contain sensitive data)
+test_*.py
+*_test.py
+demo_*.py
+simple_*.py
+
+# Development scripts and secrets
+generate_secrets.py
+build.sh
+
+# Deployment files
+.htaccess*
+passenger_wsgi.py
