@@ -177,11 +177,14 @@ ecom-api-deploy.zip
 pr.md
 PERSONAL_README.md
 
-# Test files (may contain sensitive data)
-test_*.py
-*_test.py
-demo_*.py
-simple_*.py
+# Test files from root (old location - these patterns won't match new app/tests/ location)
+# test_*.py
+# *_test.py
+# demo_*.py
+# simple_*.py
+
+# Sensitive test files (NEVER commit these!)
+app/tests/test_info.txt
 
 # Development scripts and secrets
 generate_secrets.py

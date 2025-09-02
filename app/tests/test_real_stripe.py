@@ -149,7 +149,7 @@ def test_complete_ecommerce_flow():
     
     # Step 7: Test admin features
     print("\n7️⃣ Admin Dashboard (if available)")
-    admin_login = {"email": "admin@example.com", "password": "CHANGE_THIS_ADMIN_PASSWORD_IMMEDIATELY"}
+    admin_login = {"email": "admin@example.com", "password": "admin123"}
     admin_response = requests.post(f"{BASE_URL}/auth/login", json=admin_login)
     
     if admin_response.status_code == 200:
